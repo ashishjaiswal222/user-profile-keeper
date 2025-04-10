@@ -23,10 +23,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Serve static frontend files (assumes frontend is in ../frontend)
-app.use(express.static(path.join(__dirname)));
+// Serve static files from the project root (where index.html is located)
+app.use(express.static(path.join(__dirname, '..')));
+
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, '../index.html'));
 });
+
 
 // Root route
 app.get('/', (req, res) => res.send('User Profile Keeper API is running.'));
