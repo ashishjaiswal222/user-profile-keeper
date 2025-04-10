@@ -1,7 +1,3 @@
-// config/database.js
-const { Sequelize } = require('sequelize');
-require('dotenv').config();
-
 const sequelize = new Sequelize(
   process.env.POSTGRES_DB,
   process.env.POSTGRES_USER,
@@ -9,8 +5,12 @@ const sequelize = new Sequelize(
   {
     host: process.env.POSTGRES_HOST,
     dialect: 'postgres',
-    logging: false
+    logging: false,
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false // Required for managed PostgreSQL instances that use self-signed certs
+      }
+    }
   }
 );
-
-module.exports = { sequelize };
