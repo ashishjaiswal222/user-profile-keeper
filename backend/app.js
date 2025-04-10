@@ -38,6 +38,11 @@ app.get('/', (req, res) => res.send('User Profile Keeper API is running.'));
 sequelize.authenticate()
   .then(() => {
     console.log('PostgreSQL connection established.');
+
+    // Sync your models to the database
+    return sequelize.sync(); // ✅ add this
+  })
+  .then(() => {
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
     });
@@ -46,3 +51,4 @@ sequelize.authenticate()
     console.error('Unable to connect to the database:', err);
     process.exit(1);
   });
+
