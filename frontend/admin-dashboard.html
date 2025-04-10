@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard - User Profile Keeper</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <h1>User Profile Keeper</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="admin-dashboard.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="admin-section">
+      <h2>Admin Dashboard</h2>
+      <p>Registered Users:</p>
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>City</th>
+          </tr>
+        </thead>
+        <tbody id="admin-user-list">
+          <!-- Dummy data; in a real app, fetch from the backend -->
+          <tr>
+            <td>1</td>
+            <td>John Doe</td>
+            <td>john@example.com</td>
+            <td>New York</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Jane Smith</td>
+            <td>jane@example.com</td>
+            <td>Los Angeles</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 User Profile Keeper</p>
+  </footer>
+  
+  <script src="js/main.js" defer></script>
+</body>
+</html>
