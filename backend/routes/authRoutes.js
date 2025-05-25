@@ -5,6 +5,8 @@ const { Op } = require('sequelize');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+const APP_BASE_URL = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+
 const { User, OTP, AdminRequest, Admin } = require('../models');
 const { generateToken } = require('../utils/tokenUtils');
 const { generateOTP } = require('../utils/otpUtils');
@@ -78,7 +80,7 @@ router.post('/forgot-password', async (req, res) => {
     const resetToken = generateOTP();
     const resetExpires = new Date(Date.now() + 3600000);
     await user.update({ resetPasswordToken: resetToken, resetPasswordExpires: resetExpires });
-    const resetUrl = `http://localhost:${process.env.PORT || 5000}/api/auth/reset-password?token=${resetToken}&email=${email}`;
+    const resetUrl = `${APP_BASE_URL}/api/auth/reset-password?token=${resetToken}&email=${email}`;
     await sendEmail(email, 'Password Reset', `<p>You requested a password reset.</p>
       <p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`);
     res.status(200).json({ message: 'Password reset instructions sent to your email.' });
@@ -118,8 +120,8 @@ router.post('/admin/request-registration', async (req, res) => {
       return res.status(400).json({ error: 'An admin with this email already exists.' });
     }
     const request = await AdminRequest.create({ name, email });
-    const approveLink = `http://localhost:${process.env.PORT || 5000}/api/auth/admin/approve?requestId=${request.id}`;
-    const declineLink = `http://localhost:${process.env.PORT || 5000}/api/auth/admin/decline?requestId=${request.id}`;
+    const approveLink = `${APP_BASE_URL}/api/auth/admin/approve?requestId=${request.id}`;
+    const declineLink = `${APP_BASE_URL}/api/auth/admin/decline?requestId=${request.id}`;
     const ownerEmail = 'ashishjaiswal0701@gmail.com';
     await sendEmail(ownerEmail, 'New Admin Registration Request', `<p>A new admin registration request has been received.</p>
       <p><strong>Name:</strong> ${name}</p>

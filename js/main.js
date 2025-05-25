@@ -139,33 +139,67 @@ document.getElementById('forgotForm')?.addEventListener('submit', async (e) => {
 });
 
 // -------------- Reset Password --------------
-document.getElementById('resetForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const newPassword = document.getElementById('newPassword').value;
-  const params = getQueryParams();
-  const email = params.email || prompt("Enter your email:");
-  const token = params.token || prompt("Enter your reset token:");
-  try {
-    const res = await fetch('/api/auth/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, token, newPassword })
-    });
-    const result = await res.json();
+// This logic will only run if the resetForm exists on the current page (i.e., reset-password.html)
+const resetForm = document.getElementById('resetForm');
+if (resetForm) {
+  // Extract token and email from URL query parameters when the page loads
+  const queryParams = getQueryParams();
+  const token = queryParams.token;
+  const email = queryParams.email;
+
+  // Pre-fill email if available, though not strictly necessary for submission
+  // const emailInput = document.getElementById('resetEmail'); // Assuming an input field for email exists
+  // if (emailInput && email) {
+  //   emailInput.value = email;
+  //   emailInput.readOnly = true; // Optional: make it read-only
+  // }
+
+  resetForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newPassword = document.getElementById('newPassword').value;
     const msgEl = document.getElementById('resetMessage');
-    if (!res.ok) {
-      msgEl.textContent = result.error || 'Reset failed.';
+
+    if (!token || !email) {
+      msgEl.textContent = 'Missing token or email from URL. Please use the link from your email.';
       msgEl.classList.add('error');
-    } else {
-      msgEl.textContent = result.message;
-      msgEl.classList.remove('error');
-      setTimeout(() => showSection('login'), 1500);
+      return;
     }
-  } catch (err) {
-    console.error(err);
-    document.getElementById('resetMessage').textContent = 'An error occurred.';
-  }
-});
+
+    if (!newPassword) {
+      msgEl.textContent = 'Please enter a new password.';
+      msgEl.classList.add('error');
+      return;
+    }
+    msgEl.textContent = ''; // Clear previous messages
+    msgEl.classList.remove('error');
+
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, token, newPassword })
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        msgEl.textContent = result.error || 'Password reset failed.';
+        msgEl.classList.add('error');
+      } else {
+        msgEl.textContent = result.message || 'Password has been reset successfully.';
+        msgEl.classList.remove('error');
+        setTimeout(() => {
+          showSection('login');
+          // Clear the form or redirect to login, potentially clearing URL params
+          window.history.pushState({}, document.title, window.location.pathname.replace('reset-password.html', '') + '#login');
+          resetForm.reset(); // Clear the password field
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Reset Password Error:', err);
+      msgEl.textContent = 'An error occurred during password reset. Please try again.';
+      msgEl.classList.add('error');
+    }
+  });
+}
 
 // -------------- Fetch and Display User Profile --------------
 async function getUserProfile() {
@@ -292,10 +326,13 @@ document.getElementById('adminLoginForm')?.addEventListener('submit', async (e) 
       msgEl.textContent = 'Admin login successful!';
       msgEl.classList.remove('error');
       localStorage.setItem('adminToken', result.token);
-      setTimeout(() => {
-        showSection('adminDashboard');
-        loadAdminDashboard();
-      }, 1500);
+      // Redirect to admin dashboard page if not already there
+      if (!window.location.pathname.includes('admin-dashboard.html')) {
+        window.location.href = 'admin-dashboard.html';
+      } else {
+        showSection('adminDashboard'); // Assuming this hides other sections
+        loadAdminDashboard(); // Load data if already on the page
+      }
     }
   } catch (err) {
     console.error(err);
@@ -306,25 +343,75 @@ document.getElementById('adminLoginForm')?.addEventListener('submit', async (e) 
 
 // -------------- Admin Dashboard: Load Users & Actions --------------
 async function loadAdminDashboard() {
+  const adminToken = localStorage.getItem('adminToken');
+  const userListTableBody = document.getElementById('admin-user-list');
+  const errorDisplay = document.getElementById('admin-user-list-error');
+
+  if (!userListTableBody) { // Should not happen if on admin-dashboard.html
+    console.error('Admin user list table body not found.');
+    return;
+  }
+
+  // Clear previous content and errors
+  userListTableBody.innerHTML = '';
+  if (errorDisplay) {
+    errorDisplay.textContent = '';
+    errorDisplay.style.display = 'none';
+  }
+
+  if (!adminToken) {
+    if (errorDisplay) {
+      errorDisplay.textContent = 'Admin token not found. Please log in as admin.';
+      errorDisplay.style.display = 'block';
+    } else {
+      alert('Admin token not found. Please log in as admin.');
+    }
+    // Optionally redirect to admin login page
+    // window.location.href = 'admin-login.html'; // Or showSection('adminLogin') if it's a SPA section
+    return;
+  }
+
   try {
     const res = await fetch('/api/admin/users', {
       method: 'GET',
-      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
+      headers: { 'Authorization': 'Bearer ' + adminToken }
     });
     const result = await res.json();
+
     if (!res.ok) {
-      alert(result.error || 'Failed to load users.');
+      const errorMsg = result.error || `Error ${res.status}: Failed to load users.`;
+      if (errorDisplay) {
+        errorDisplay.textContent = errorMsg;
+        errorDisplay.style.display = 'block';
+      } else {
+        alert(errorMsg);
+      }
+      if (res.status === 401 || res.status === 403) {
+        // Token might be invalid or expired, redirect to login
+        localStorage.removeItem('adminToken'); // Clear bad token
+        // window.location.href = 'admin-login.html'; // Or showSection('adminLogin')
+      }
       return;
     }
-    const tbody = document.getElementById('adminUserTableBody');
-    tbody.innerHTML = '';
+
+    if (!result.users || result.users.length === 0) {
+      if (errorDisplay) {
+        errorDisplay.textContent = 'No users found.';
+        errorDisplay.style.display = 'block';
+      } else {
+        userListTableBody.innerHTML = '<tr><td colspan="4">No users found.</td></tr>';
+      }
+      return;
+    }
+
     result.users.forEach(user => {
       const tr = document.createElement('tr');
+      // Only ID, Name, Email, City are required by the task for display
       tr.innerHTML = `
         <td>${user.id}</td>
         <td>${user.name}</td>
         <td>${user.email}</td>
-        <td>${user.city}</td>
+        <td>${user.city || 'N/A'}</td>
         <td>
           <button class="btn btn-danger btn-sm me-1" onclick="deleteUser(${user.id}, '${user.email}')">
             <i class="fa-solid fa-trash"></i> Delete
@@ -334,13 +421,28 @@ async function loadAdminDashboard() {
           </button>
         </td>
       `;
-      tbody.appendChild(tr);
+      userListTableBody.appendChild(tr);
     });
   } catch (err) {
-    console.error(err);
-    alert('An error occurred while loading dashboard.');
+    console.error('Admin Dashboard Error:', err);
+    const genericErrorMsg = 'An unexpected error occurred while loading dashboard data.';
+    if (errorDisplay) {
+      errorDisplay.textContent = genericErrorMsg;
+      errorDisplay.style.display = 'block';
+    } else {
+      alert(genericErrorMsg);
+    }
   }
 }
+
+// Load admin dashboard data if on the admin dashboard page
+document.addEventListener('DOMContentLoaded', () => {
+  // Check if we are on the admin-dashboard.html page
+  // This can be done by checking for a specific element ID or the URL path
+  if (document.getElementById('admin-user-list')) {
+    loadAdminDashboard();
+  }
+});
 
 // -------------- Admin Dashboard: Delete User --------------
 function deleteUser(userId, userEmail) {
