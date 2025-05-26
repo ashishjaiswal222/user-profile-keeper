@@ -1,6 +1,16 @@
 /* Custom Styles */
 body {
   font-family: 'Arial', sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Ensure body takes at least full viewport height */
+}
+
+/* Target the main content area to make it grow and push the footer down */
+/* This assumes "div.container.my-4" is the direct wrapper of all sections 
+   and is between the header and footer in index.html */
+.container.my-4 {
+  flex: 1; /* Allows this area to grow */
 }
 
 .section {
@@ -51,3 +61,29 @@ body {
     padding: 10px;
   }
 }
+
+/* Button Hover Effects */
+.btn {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, background-color 0.2s ease-out, border-color 0.2s ease-out;
+}
+
+.btn:hover {
+  transform: translateY(-2px); /* Slight lift effect */
+  /* Applying a subtle shadow enhancement. Bootstrap buttons already have shadows, 
+     so this should be an enhancement or a replacement if the default is removed.
+     For now, this adds to any existing shadow or creates one if none. */
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06); 
+}
+
+/* Specific hover states for different button types for color consistency if needed,
+   but Bootstrap usually handles this well. The transform and shadow are generic.
+   If specific color changes on hover are desired beyond Bootstrap's defaults, they can be added.
+   For instance, to slightly darken a primary button on hover:
+   .btn-primary:hover {
+     background-color: #0056b3; /* Example: a darker shade of primary */
+     border-color: #0056b3;
+   }
+   However, the task only asks for transform and shadow, so I'll stick to that primarily.
+   The transition for background-color and border-color is added above for completeness
+   if Bootstrap's own hover effects for these properties should also be smooth.
+*/

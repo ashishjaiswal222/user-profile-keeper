@@ -3,6 +3,86 @@ function showSection(sectionId) {
   document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
   const activeSec = document.getElementById(sectionId);
   if (activeSec) activeSec.classList.add('active');
+  // Update hash for SPA navigation, but avoid if it's the initial load to landing
+  if (sectionId !== 'landing' || window.location.hash) {
+    window.location.hash = sectionId;
+  } else if (sectionId === 'landing' && window.location.hash) {
+    // If navigating to landing and there's a hash, clear it.
+    history.pushState("", document.title, window.location.pathname + window.location.search);
+  }
+}
+
+// Comprehensive navigation update function
+function updateNav() {
+  const token = localStorage.getItem('token');
+  const adminToken = localStorage.getItem('adminToken');
+
+  // Get all nav items by their IDs
+  const homeNav = document.getElementById('homeNav');
+  const registerNav = document.getElementById('registerNav');
+  const loginNav = document.getElementById('loginNav');
+  const profileNav = document.getElementById('profileNav');
+  const adminLoginNav = document.getElementById('adminLoginNav');
+  const adminDashboardNav = document.getElementById('adminDashboardNav');
+  const logoutNav = document.getElementById('logoutNav');
+
+  // Ensure all elements exist before trying to set style
+  if (!homeNav || !registerNav || !loginNav || !profileNav || !adminLoginNav || !adminDashboardNav || !logoutNav) {
+    console.error("One or more navigation elements are missing from the DOM.");
+    return;
+  }
+
+  // Default: Not Logged In
+  homeNav.style.display = 'block';
+  registerNav.style.display = 'block';
+  loginNav.style.display = 'block';
+  adminLoginNav.style.display = 'block';
+  profileNav.style.display = 'none';
+  adminDashboardNav.style.display = 'none';
+  logoutNav.style.display = 'none';
+
+  if (adminToken) { // Admin Logged In
+    homeNav.style.display = 'block'; // Or 'none' if admin has a very specific view
+    adminDashboardNav.style.display = 'block';
+    logoutNav.style.display = 'block';
+
+    registerNav.style.display = 'none';
+    loginNav.style.display = 'none';
+    profileNav.style.display = 'none'; // Hide regular user profile for admin
+    adminLoginNav.style.display = 'none';
+  } else if (token) { // User Logged In (Not Admin)
+    homeNav.style.display = 'block';
+    profileNav.style.display = 'block';
+    logoutNav.style.display = 'block';
+
+    registerNav.style.display = 'none';
+    loginNav.style.display = 'none';
+    adminLoginNav.style.display = 'none';
+    adminDashboardNav.style.display = 'none';
+  }
+  // If neither adminToken nor token, the default visibility set above is correct.
+}
+
+// Generic Logout Function
+function logout() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('adminToken');
+  updateNav();
+  showSection('login'); // Or 'landing'
+}
+
+// Function to show admin dashboard (checks auth and loads data)
+function showAdminDashboard() {
+  const adminToken = localStorage.getItem('adminToken');
+  if (adminToken) {
+    showSection('adminDashboard');
+    loadAdminDashboard(); 
+  } else {
+    alert('Please log in as admin first.');
+    showSection('adminLogin');
+  }
+  updateNav(); // Update nav based on current auth state
 }
 
 // Utility: Parse query parameters
@@ -21,9 +101,11 @@ function handleProfileClick() {
   if (!token) {
     alert('Please log in first.');
     showSection('login');
+    updateNav(); // Update nav if token is missing
   } else {
     getUserProfile();
     showSection('profile');
+    // updateNav(); // Not strictly necessary here if login/logout are the primary triggers
   }
 }
 
@@ -101,10 +183,11 @@ document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
       msgEl.classList.remove('error');
       localStorage.setItem('token', result.token);
       localStorage.setItem('user', JSON.stringify(result.user));
+      updateNav(); // Update nav after successful user login
       setTimeout(() => {
-        getUserProfile();
-        showSection('profile');
-      }, 1500);
+        // getUserProfile(); // Called by handleProfileClick or when profile section is shown
+        showSection('profile'); 
+      }, 1500); // Delay can be removed if direct navigation is preferred
     }
   } catch (err) {
     console.error(err);
@@ -138,34 +221,63 @@ document.getElementById('forgotForm')?.addEventListener('submit', async (e) => {
   }
 });
 
-// -------------- Reset Password --------------
-document.getElementById('resetForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const newPassword = document.getElementById('newPassword').value;
-  const params = getQueryParams();
-  const email = params.email || prompt("Enter your email:");
-  const token = params.token || prompt("Enter your reset token:");
-  try {
-    const res = await fetch('/api/auth/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, token, newPassword })
-    });
-    const result = await res.json();
-    const msgEl = document.getElementById('resetMessage');
-    if (!res.ok) {
-      msgEl.textContent = result.error || 'Reset failed.';
+// -------------- Reset Password (SPA context) --------------
+// This listener is for the #resetForm within index.html
+const resetFormSPA = document.getElementById('resetForm');
+if (resetFormSPA) {
+  resetFormSPA.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newPassword = document.getElementById('newPassword').value;
+    const msgEl = document.getElementById('resetMessage'); // Message element within the #reset section
+    
+    const queryParams = getQueryParams(); // Get token and email from URL
+    const token = queryParams.token;
+    const email = queryParams.email;
+
+    if (!token || !email) {
+      msgEl.textContent = 'Missing token or email from URL. Please use the link from your email.';
       msgEl.classList.add('error');
-    } else {
-      msgEl.textContent = result.message;
-      msgEl.classList.remove('error');
-      setTimeout(() => showSection('login'), 1500);
+      // Optionally, redirect to forgot password or login if params are missing
+      // showSection('forgot'); 
+      return;
     }
-  } catch (err) {
-    console.error(err);
-    document.getElementById('resetMessage').textContent = 'An error occurred.';
-  }
-});
+
+    if (!newPassword) {
+      msgEl.textContent = 'Please enter a new password.';
+      msgEl.classList.add('error');
+      return;
+    }
+    msgEl.textContent = ''; 
+    msgEl.classList.remove('error', 'success'); // Clear previous states
+
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, token, newPassword })
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        msgEl.textContent = result.error || 'Password reset failed.';
+        msgEl.classList.add('error');
+      } else {
+        msgEl.textContent = result.message || 'Password has been reset successfully.';
+        msgEl.classList.add('success'); // Use a success class for styling if available
+        msgEl.classList.remove('error');
+        setTimeout(() => {
+          showSection('login');
+          // Clear URL parameters without full page reload, and ensure a hash for SPA behavior
+          window.history.pushState({}, document.title, window.location.pathname + "#login");
+          resetFormSPA.reset(); 
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Reset Password Error:', err);
+      msgEl.textContent = 'An error occurred during password reset. Please try again.';
+      msgEl.classList.add('error');
+    }
+  });
+}
 
 // -------------- Fetch and Display User Profile --------------
 async function getUserProfile() {
@@ -292,10 +404,8 @@ document.getElementById('adminLoginForm')?.addEventListener('submit', async (e) 
       msgEl.textContent = 'Admin login successful!';
       msgEl.classList.remove('error');
       localStorage.setItem('adminToken', result.token);
-      setTimeout(() => {
-        showSection('adminDashboard');
-        loadAdminDashboard();
-      }, 1500);
+      // showAdminDashboard already calls updateNav
+      showAdminDashboard(); 
     }
   } catch (err) {
     console.error(err);
@@ -306,41 +416,135 @@ document.getElementById('adminLoginForm')?.addEventListener('submit', async (e) 
 
 // -------------- Admin Dashboard: Load Users & Actions --------------
 async function loadAdminDashboard() {
+  const adminToken = localStorage.getItem('adminToken');
+  const userListTableBody = document.getElementById('adminUserTableBody'); // Corrected ID for index.html
+  const errorDisplay = document.getElementById('adminDashboardError'); // Corrected ID for index.html
+
+  if (!userListTableBody) { 
+    console.error('Admin user table body (adminUserTableBody) not found.');
+    if (errorDisplay) {
+        errorDisplay.textContent = 'Admin dashboard UI elements are missing (table body). Please contact support.';
+        errorDisplay.style.display = 'block';
+    }
+    return;
+  }
+
+  // Clear previous content and errors
+  userListTableBody.innerHTML = '';
+  if (errorDisplay) {
+    errorDisplay.textContent = '';
+    errorDisplay.style.display = 'none';
+  }
+
+  if (!adminToken) {
+    if (errorDisplay) {
+      errorDisplay.textContent = 'Admin token not found. Please log in as admin.';
+      errorDisplay.style.display = 'block';
+    } else {
+      // Fallback if errorDisplay itself is missing for some reason
+      alert('Admin token not found. Please log in as admin.');
+    }
+    showSection('adminLogin'); // Redirect to admin login if not authenticated
+    updateNav(); // Ensure nav is updated if token was expected but not found
+    return;
+  }
+
   try {
     const res = await fetch('/api/admin/users', {
       method: 'GET',
-      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
+      headers: { 'Authorization': 'Bearer ' + adminToken }
     });
     const result = await res.json();
+
     if (!res.ok) {
-      alert(result.error || 'Failed to load users.');
+      const errorMsg = result.error || `Error ${res.status}: Failed to load users.`;
+      if (errorDisplay) {
+        errorDisplay.textContent = errorMsg;
+        errorDisplay.style.display = 'block';
+      } else {
+        alert(errorMsg);
+      }
+      if (res.status === 401 || res.status === 403) {
+        // Token might be invalid or expired, redirect to login
+        localStorage.removeItem('adminToken'); // Clear bad token
+        // window.location.href = 'admin-login.html'; // Or showSection('adminLogin')
+      }
       return;
     }
-    const tbody = document.getElementById('adminUserTableBody');
-    tbody.innerHTML = '';
+
+    if (!result.users || !Array.isArray(result.users) || result.users.length === 0) {
+      userListTableBody.innerHTML = ''; // Clear any existing rows
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td colspan="5" class="text-center fst-italic">No users currently registered.</td>';
+      userListTableBody.appendChild(tr);
+      if (errorDisplay) { // Clear any previous API errors
+        errorDisplay.textContent = '';
+        errorDisplay.style.display = 'none';
+      }
+      return;
+    }
+    // If users are found, ensure error display is hidden
+    if (errorDisplay) {
+        errorDisplay.textContent = '';
+        errorDisplay.style.display = 'none';
+    }
+
     result.users.forEach(user => {
       const tr = document.createElement('tr');
+      // Only ID, Name, Email, City are required by the task for display
       tr.innerHTML = `
         <td>${user.id}</td>
         <td>${user.name}</td>
         <td>${user.email}</td>
-        <td>${user.city}</td>
+        <td>${user.city || 'N/A'}</td>
         <td>
-          <button class="btn btn-danger btn-sm me-1" onclick="deleteUser(${user.id}, '${user.email}')">
+          <button class="btn btn-danger btn-sm me-1" title="Delete User" onclick="deleteUser(${user.id}, '${user.email}')">
             <i class="fa-solid fa-trash"></i> Delete
           </button>
-          <button class="btn btn-warning btn-sm" onclick="blockUser(${user.id}, '${user.email}')">
+          <button class="btn btn-warning btn-sm" title="Block User" onclick="blockUser(${user.id}, '${user.email}')">
             <i class="fa-solid fa-ban"></i> Block
           </button>
         </td>
       `;
-      tbody.appendChild(tr);
+      userListTableBody.appendChild(tr);
     });
   } catch (err) {
-    console.error(err);
-    alert('An error occurred while loading dashboard.');
+    console.error('Admin Dashboard Error:', err);
+    const genericErrorMsg = 'An unexpected error occurred while loading dashboard data. Please check your connection or try again later.';
+    if (errorDisplay) {
+      errorDisplay.textContent = genericErrorMsg;
+      errorDisplay.style.display = 'block';
+    } else {
+      alert(genericErrorMsg);
+    }
+     // Also clear the table body in case of a full fetch error, to avoid showing stale data.
+    userListTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading user data.</td></tr>`;
   }
 }
+
+// Initial setup on DOMContentLoaded (modified for SPA context)
+document.addEventListener('DOMContentLoaded', () => {
+  const queryParams = getQueryParams();
+  let initialSection = window.location.hash.substring(1);
+
+  if (initialSection === 'reset' && queryParams.token && queryParams.email) {
+    showSection('reset');
+  } else if (initialSection && document.getElementById(initialSection)) {
+    showSection(initialSection); 
+    if (initialSection === 'adminDashboard' && localStorage.getItem('adminToken')) {
+      loadAdminDashboard();
+    } else if (initialSection === 'adminDashboard' && !localStorage.getItem('adminToken')) {
+      showSection('adminLogin'); 
+    } else if (initialSection === 'profile' && localStorage.getItem('token')) {
+      getUserProfile();
+    } else if (initialSection === 'profile' && !localStorage.getItem('token')) {
+      showSection('login');
+    }
+  } else {
+    showSection('landing'); 
+  }
+  updateNav(); // Centralized nav update on load
+});
 
 // -------------- Admin Dashboard: Delete User --------------
 function deleteUser(userId, userEmail) {
@@ -391,5 +595,6 @@ function blockUser(userId, userEmail) {
 // -------------- Logout (Admin) --------------
 function logoutAdmin() {
   localStorage.removeItem('adminToken');
-  showSection('landing');
+  showSection('adminLogin'); // Or 'landing' as per preference
+  updateAdminNavVisibility();
 }

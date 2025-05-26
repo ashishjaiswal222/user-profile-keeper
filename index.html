@@ -23,24 +23,28 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto" id="mainNav">
-          <li class="nav-item">
-            <a class="nav-link" onclick="showSection('landing')">Home</a>
+          <li class="nav-item" id="homeNav">
+            <a class="nav-link" href="#" onclick="showSection('landing')">Home</a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" onclick="showSection('register')">Register</a>
+          <li class="nav-item" id="registerNav">
+            <a class="nav-link" href="#" onclick="showSection('register')">Register</a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" onclick="showSection('login')">Login</a>
+          <li class="nav-item" id="loginNav">
+            <a class="nav-link" href="#" onclick="showSection('login')">Login</a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" id="profileNav" onclick="handleProfileClick()">Profile</a>
+          <li class="nav-item" id="profileNav" style="display: none;"> <!-- Initially hidden -->
+            <a class="nav-link" href="#" onclick="handleProfileClick()">Profile</a>
           </li>
-          <!-- Admin dashboard link (if using a separate page) -->
-          <li class="nav-item" id="adminNavItem" style="display: none;">
-            <a class="nav-link" onclick="window.location.href='dashboard.html'">Dashboard</a>
+          <!-- Admin Dashboard Link - visibility controlled by JS -->
+          <li class="nav-item" id="adminDashboardNav" style="display: none;">
+            <a class="nav-link" href="#" onclick="showAdminDashboard()">Dashboard</a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" onclick="showSection('adminLogin')">Admin</a>
+          <!-- Admin Login Link - visibility controlled by JS -->
+          <li class="nav-item" id="adminLoginNav" style="display: block;"> <!-- Initially visible -->
+            <a class="nav-link" href="#" onclick="showSection('adminLogin')">Admin Login</a>
+          </li>
+          <li class="nav-item" id="logoutNav" style="display: none;">
+            <a class="nav-link" href="#" onclick="logout()">Logout</a>
           </li>
         </ul>
       </div>
@@ -161,15 +165,35 @@
 
 <!-- User Profile Section -->
 <section id="profile" class="section">
-  <h2 class="text-center">Your Profile</h2>
-  <div id="profileContent" class="mb-3">
-    <p><strong>Name:</strong> <span id="pName"></span></p>
-    <p><strong>Email:</strong> <span id="pEmail"></span></p>
-    <p><strong>Contact:</strong> <span id="pContact"></span></p>
-    <p><strong>Date of Birth:</strong> <span id="pDob"></span></p>
-    <p><strong>City:</strong> <span id="pCity"></span></p>
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="text-center card-title mb-4">Your Profile</h2>
+          <ul class="list-group list-group-flush mb-4">
+            <li class="list-group-item">
+              <strong>Name:</strong> <span id="pName" class="float-end"></span>
+            </li>
+            <li class="list-group-item">
+              <strong>Email:</strong> <span id="pEmail" class="float-end"></span>
+            </li>
+            <li class="list-group-item">
+              <strong>Contact:</strong> <span id="pContact" class="float-end"></span>
+            </li>
+            <li class="list-group-item">
+              <strong>Date of Birth:</strong> <span id="pDob" class="float-end"></span>
+            </li>
+            <li class="list-group-item">
+              <strong>City:</strong> <span id="pCity" class="float-end"></span>
+            </li>
+          </ul>
+          <button id="logoutBtn" class="btn btn-danger w-100" onclick="logout()">
+            <i class="fas fa-sign-out-alt me-2"></i>Logout
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
-  <button id="logoutBtn" class="btn btn-secondary w-100">Logout</button>
 </section>
 
 <!-- Admin Login Section -->
@@ -227,24 +251,40 @@
 
 <!-- Admin Dashboard Section -->
 <section id="adminDashboard" class="section">
-  <h2 class="text-center">Admin Dashboard</h2>
-  <div class="table-responsive mb-3">
-    <table class="table table-bordered" id="adminUserTable">
-      <thead class="table-primary">
-        <tr>
-          <th>ID</th>
-          <th>Name</th>
-          <th>Email</th>
-          <th>City</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="adminUserTableBody">
-        <!-- User data will be populated dynamically -->
-      </tbody>
-    </table>
+  <div class="row justify-content-center">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h2 class="text-center card-title mb-4">Admin Dashboard</h2>
+          <div class="table-responsive mb-3">
+            <table class="table table-bordered table-striped table-hover" id="adminUserTable">
+              <thead class="table-primary">
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>City</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminUserTableBody">
+                <!-- User data will be populated dynamically by js/main.js -->
+                <!-- Example of "No users" row (to be added by JS):
+                <tr>
+                  <td colspan="5" class="text-center fst-italic">No users currently registered.</td>
+                </tr>
+                -->
+              </tbody>
+            </table>
+          </div>
+          <div id="adminDashboardError" class="message text-center alert alert-danger" style="display: none;"></div>
+          <button class="btn btn-danger w-100 mt-3" onclick="logout()">
+            <i class="fas fa-sign-out-alt me-2"></i>Logout Admin
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
-  <button class="btn btn-secondary w-100" onclick="logoutAdmin()">Logout</button>
 </section>
 ```
 
